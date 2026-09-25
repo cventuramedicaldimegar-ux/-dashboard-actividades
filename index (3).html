@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento de Actividades Corporativas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --navy-950:#0B1F3A;
+    --navy-900:#0F2A4A;
+    --navy-800:#1F3864;
+    --blue-700:#2E5C8A;
+    --blue-600:#2E75B6;
+    --blue-500:#4472C4;
+    --blue-400:#5B9BD5;
+    --blue-300:#8FAADC;
+    --blue-200:#BDD7EE;
+    --blue-100:#DCE6F1;
+    --blue-050:#EEF3FA;
+    --white:#FFFFFF;
+
+    --red:#E4572E;
+    --red-soft:#FFC7CE;
+    --red-text:#9C0006;
+    --amber:#F2B705;
+    --amber-soft:#FFEB9C;
+    --amber-text:#8A6D00;
+    --green:#2FA65A;
+    --green-soft:#C6EFCE;
+    --green-text:#0B6B33;
+    --gray:#8A94A6;
+
+    --bg:var(--blue-050);
+    --panel:var(--white);
+    --text:#1B2A41;
+    --text-soft:#5B6B85;
+    --border:#E1E8F3;
+    --sidebar-grad-1:var(--navy-950);
+    --sidebar-grad-2:var(--navy-900);
+    --sidebar-grad-3:var(--blue-800, #1F3864);
+    --shadow-card: 0 10px 25px -8px rgba(15,42,74,0.25), 0 2px 6px rgba(15,42,74,0.08);
+    --shadow-card-hover: 0 22px 40px -12px rgba(15,42,74,0.35), 0 4px 10px rgba(15,42,74,0.12);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0A1628;
+      --panel:#0F2138;
+      --text:#E7EEFB;
+      --text-soft:#9FB2CE;
+      --border:#1D3252;
+      --blue-050:#0F2138;
+      --blue-100:#16294a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0A1628;
+    --panel:#0F2138;
+    --text:#E7EEFB;
+    --text-soft:#9FB2CE;
+    --border:#1D3252;
+    --blue-050:#0F2138;
+    --blue-100:#16294a;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI', Arial, Helvetica, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar{
+    width:250px;
+    min-width:250px;
+    background:linear-gradient(160deg, var(--navy-950) 0%, var(--navy-900) 55%, var(--blue-800,#1F3864) 100%);
+    color:#DCE6F1;
+    display:flex;
+    flex-direction:column;
+    position:fixed;
+    top:0; left:0; bottom:0;
+    box-shadow: 6px 0 24px rgba(0,0,0,0.25);
+    z-index:20;
+    transition:transform .25s ease;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:22px 20px 18px 20px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .brand-cube{
+    width:38px;height:38px;
+    position:relative;
+    transform:perspective(200px) rotateX(18deg) rotateY(-24deg);
+    flex-shrink:0;
+  }
+  .brand-cube .face{
+    position:absolute; inset:0;
+    border-radius:6px;
+  }
+  .brand-cube .f1{background:linear-gradient(135deg,#5B9BD5,#2E75B6); transform:translateZ(8px);}
+  .brand-cube .f2{background:linear-gradient(135deg,#2E75B6,#1F3864); transform:translateX(6px) translateY(6px); opacity:.85; filter:blur(.2px);}
+  .brand-title{font-size:15px; font-weight:700; color:#fff; line-height:1.2;}
+  .brand-sub{font-size:10.5px; color:#9DC3E6; letter-spacing:.04em;}
+
+  nav.menu{padding:16px 12px; flex:1; overflow-y:auto;}
+  .menu-section-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.08em;
+    color:#6E86AC; margin:14px 10px 8px 10px; font-weight:700;
+  }
+  .menu-item{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; margin-bottom:3px;
+    border-radius:10px;
+    color:#C7D6EC;
+    cursor:pointer;
+    font-size:13.5px;
+    font-weight:500;
+    position:relative;
+    transition:background .18s ease, color .18s ease, transform .12s ease;
+    border:1px solid transparent;
+  }
+  .menu-item svg{width:18px;height:18px; flex-shrink:0; opacity:.85;}
+  .menu-item:hover{background:rgba(255,255,255,0.06); color:#fff; transform:translateX(2px);}
+  .menu-item.active{
+    background:linear-gradient(135deg, rgba(91,155,213,.35), rgba(46,117,182,.18));
+    color:#fff;
+    border-color:rgba(139,175,220,.35);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 4px 12px rgba(15,42,74,.35);
+  }
+  .menu-item.active::before{
+    content:"";
+    position:absolute; left:-12px; top:50%; transform:translateY(-50%);
+    width:4px; height:60%; border-radius:4px;
+    background:linear-gradient(180deg,#8FAADC,#5B9BD5);
+  }
+  .menu-item .badge{
+    margin-left:auto;
+    font-size:10.5px; font-weight:700;
+    padding:2px 7px; border-radius:20px;
+    background:rgba(255,255,255,.12); color:#DCE6F1;
+  }
+  .menu-item .badge.alert{ background:var(--red); color:#fff; }
+
+  .sidebar-footer{
+    padding:14px 18px 18px 18px;
+    border-top:1px solid rgba(255,255,255,0.08);
+    font-size:11px; color:#7C93B8;
+  }
+  .user-chip{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .user-avatar{
+    width:32px;height:32px;border-radius:50%;
+    background:linear-gradient(135deg,#5B9BD5,#1F3864);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:#fff; font-size:12px;
+    box-shadow:0 4px 10px rgba(15,42,74,.5);
+  }
+
+  /* ============ MAIN ============ */
+  .main{
+    margin-left:250px;
+    flex:1;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    padding:18px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    position:sticky; top:0; z-index:10;
+    box-shadow:0 2px 10px rgba(15,42,74,.04);
+  }
+  .topbar h1{font-size:19px; margin:0; color:var(--navy-800); font-weight:700;}
+  .topbar .sub{font-size:12px; color:var(--text-soft); margin-top:2px;}
+  .topbar-actions{display:flex; gap:10px; align-items:center;}
+  .pill-date{
+    font-size:12px; color:var(--blue-700); background:var(--blue-100);
+    padding:8px 14px; border-radius:20px; font-weight:600;
+  }
+  .content{padding:28px 32px 48px 32px;}
+  .view{display:none;}
+  .view.active{display:block; animation:fadeIn .35s ease;}
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  h2.section-title{
+    font-size:15px; color:var(--navy-800); margin:0 0 16px 2px; font-weight:700;
+    display:flex; align-items:center; gap:8px;
+  }
+
+  /* ============ KPI CARDS 3D ============ */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5, 1fr);
+    gap:18px;
+    margin-bottom:30px;
+    perspective:1000px;
+  }
+  .kpi-card{
+    position:relative;
+    border-radius:16px;
+    padding:20px 18px;
+    color:#fff;
+    overflow:hidden;
+    cursor:default;
+    transform-style:preserve-3d;
+    box-shadow:var(--shadow-card);
+    transition:transform .12s ease, box-shadow .2s ease;
+    background:linear-gradient(145deg, var(--c1), var(--c2));
+    min-height:118px;
+  }
+  .kpi-card::after{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,0) 45%);
+    pointer-events:none;
+  }
+  .kpi-card:hover{ box-shadow:var(--shadow-card-hover); }
+  .kpi-card .icon-circle{
+    width:34px;height:34px;border-radius:10px;
+    background:rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:10px;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.35), 0 3px 6px rgba(0,0,0,.15);
+  }
+  .kpi-card .icon-circle svg{width:18px; height:18px;}
+  .kpi-card .label{font-size:11.5px; font-weight:700; opacity:.92; letter-spacing:.02em; text-transform:uppercase;}
+  .kpi-card .value{font-size:30px; font-weight:800; margin-top:4px; letter-spacing:-.01em;}
+  .kpi-card .value sup{font-size:15px; font-weight:700;}
+  .kpi-card .trend{font-size:11px; margin-top:6px; opacity:.85; display:flex; align-items:center; gap:4px;}
+
+  .kpi-total{--c1:#2E5C8A; --c2:#1F3864;}
+  .kpi-completadas{--c1:#3BB273; --c2:#1F7A4C;}
+  .kpi-vencidas{--c1:#EF6E5B; --c2:#C23B27;}
+  .kpi-porvencer{--c1:#F4C24D; --c2:#C68A11;}
+  .kpi-avance{--c1:#5B9BD5; --c2:#2E5C8A;}
+
+  /* ============ PANELS / CHARTS ============ */
+  .grid-2{
+    display:grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap:20px;
+    margin-bottom:24px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:20px 22px;
+    box-shadow:var(--shadow-card);
+  }
+  .panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .panel-head h3{font-size:14px; margin:0; color:var(--navy-800); font-weight:700;}
+  .legend-row{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-soft);}
+  .dot{width:10px;height:10px;border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,.15);}
+
+  .bars-3d{display:flex; align-items:flex-end; gap:16px; height:190px; padding-top:10px;}
+  .bar-3d-wrap{flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;}
+  .bar-3d{
+    width:100%;
+    max-width:46px;
+    border-radius:8px 8px 4px 4px;
+    position:relative;
+    transform-style:preserve-3d;
+    box-shadow: 4px 6px 0 rgba(15,42,74,.12), var(--shadow-card);
+    transition:transform .2s ease;
+  }
+  .bar-3d:hover{ transform:translateY(-4px); }
+  .bar-3d::before{ /* top face for 3D */
+    content:"";
+    position:absolute; top:-6px; left:2px; right:2px; height:8px;
+    background:rgba(255,255,255,.35);
+    border-radius:6px 6px 0 0;
+    transform:skewX(-24deg);
+  }
+  .bar-label{font-size:11.5px; color:var(--text-soft); margin-top:8px; font-weight:600;}
+  .bar-value{font-size:13px; font-weight:800; color:var(--navy-800); margin-bottom:4px;}
+
+  /* ============ TABLE ============ */
+  .filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+  .chip{
+    padding:7px 14px; border-radius:20px; font-size:12.5px; font-weight:600;
+    background:var(--blue-100); color:var(--blue-700);
+    cursor:pointer; border:1px solid transparent;
+    transition:all .15s ease;
+    user-select:none;
+  }
+  .chip:hover{ transform:translateY(-1px); }
+  .chip.active{
+    background:linear-gradient(135deg,var(--blue-600),var(--navy-800));
+    color:#fff;
+    box-shadow:0 6px 14px rgba(31,56,100,.35);
+  }
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    text-align:left; padding:10px 12px; font-size:11px; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--text-soft); border-bottom:2px solid var(--border);
+  }
+  tbody td{padding:12px 12px; border-bottom:1px solid var(--border); color:var(--text);}
+  tbody tr{transition:background .15s ease;}
+  tbody tr:hover{background:var(--blue-050);}
+  .tag{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:700;
+  }
+  .tag-dot{width:7px;height:7px;border-radius:50%;}
+  .tag-red{background:var(--red-soft); color:var(--red-text);}
+  .tag-amber{background:var(--amber-soft); color:var(--amber-text);}
+  .tag-green{background:var(--green-soft); color:var(--green-text);}
+  .tag-gray{background:#E7ECF3; color:#5B6B85;}
+  .tag-blue{background:var(--blue-100); color:var(--blue-700);}
+
+  .progress-track{width:90px; height:8px; background:var(--blue-100); border-radius:6px; overflow:hidden;}
+  .progress-fill{height:100%; border-radius:6px; background:linear-gradient(90deg,var(--blue-500),var(--blue-700));}
+
+  .kpi-mini-row{display:flex; gap:16px; margin-bottom:24px;}
+  .kpi-mini{
+    flex:1; background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:16px 18px; box-shadow:var(--shadow-card);
+    display:flex; align-items:center; gap:14px;
+  }
+  .kpi-mini .circle{
+    width:46px;height:46px;border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:13px;
+    box-shadow: inset 0 -3px 6px rgba(0,0,0,.15), 0 6px 14px rgba(0,0,0,.15);
+    flex-shrink:0;
+  }
+  .kpi-mini .txt .n{font-size:19px; font-weight:800; color:var(--navy-800); line-height:1;}
+  .kpi-mini .txt .l{font-size:11.5px; color:var(--text-soft); margin-top:2px;}
+
+  .placeholder-card{
+    background:var(--panel); border:1px dashed var(--border); border-radius:16px;
+    padding:40px; text-align:center; color:var(--text-soft); font-size:13px;
+  }
+
+  canvas{max-width:100%;}
+
+  @media (max-width: 1100px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+  }
+  @media (max-width: 780px){
+    .sidebar{ transform:translateX(-100%); }
+    .sidebar.open{ transform:translateX(0); }
+    .main{ margin-left:0; }
+    .kpi-grid{grid-template-columns:1fr 1fr;}
+  }
+  .menu-toggle{
+    display:none;
+    background:var(--navy-800); color:#fff; border:none; border-radius:8px;
+    width:36px; height:36px; cursor:pointer; font-size:16px;
+  }
+  @media (max-width: 780px){ .menu-toggle{display:block;} }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-cube"><div class="face f1"></div><div class="face f2"></div></div>
+    <div>
+      <div class="brand-title">Corporativo</div>
+      <div class="brand-sub">SEGUIMIENTO DE ACTIVIDADES</div>
+    </div>
+  </div>
+
+  <nav class="menu">
+    <div class="menu-section-label">Principal</div>
+    <div class="menu-item active" data-view="resumen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </div>
+    <div class="menu-item" data-view="actividades">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.5"/><circle cx="4.5" cy="12" r="1.5"/><circle cx="4.5" cy="18" r="1.5"/></svg>
+      Actividades
+      <span class="badge" id="navBadgeTotal">42</span>
+    </div>
+    <div class="menu-item" data-view="prioridades">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+      Prioridades
+    </div>
+    <div class="menu-item" data-view="alertas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+      Alertas
+      <span class="badge alert" id="navBadgeAlert">11</span>
+    </div>
+
+    <div class="menu-section-label">Análisis</div>
+    <div class="menu-item" data-view="historial">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+      Historial
+    </div>
+    <div class="menu-item" data-view="areas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+      Por área
+    </div>
+
+    <div class="menu-section-label">Sistema</div>
+    <div class="menu-item" data-view="config">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
+      Configuración
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="user-avatar">MG</div>
+      <div>
+        <div style="color:#DCE6F1; font-weight:700; font-size:12.5px;">María González</div>
+        <div style="font-size:10.5px;">Coordinación de Procesos</div>
+      </div>
+    </div>
+    © 2026 · v1.0
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <div>
+        <h1 id="viewTitle">Panel general de indicadores</h1>
+        <div class="sub" id="viewSub">Actualizado en tiempo real desde la base de seguimiento</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="pill-date" id="fechaHoy"></span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===================== VISTA: RESUMEN / DASHBOARD ===================== -->
+    <section class="view active" id="view-resumen">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-total">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 4v5"/></svg></div>
+          <div class="label">Total de actividades</div>
+          <div class="value" id="kpiTotal">42</div>
+          <div class="trend" id="kpiTotalTrend">▲ 6% vs. mes anterior</div>
+        </div>
+        <div class="kpi-card kpi-completadas">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <div class="label">Completadas</div>
+          <div class="value" id="kpiCompletadas">18</div>
+          <div class="trend" id="kpiCompletadasTrend">42.8% del total</div>
+        </div>
+        <div class="kpi-card kpi-vencidas">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+          <div class="label">Vencidas</div>
+          <div class="value" id="kpiVencidas">6</div>
+          <div class="trend">Requieren atención inmediata</div>
+        </div>
+        <div class="kpi-card kpi-porvencer">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg></div>
+          <div class="label">Por vencer (≤3 días)</div>
+          <div class="value" id="kpiPorVencer">5</div>
+          <div class="trend">Vigilar de cerca</div>
+        </div>
+        <div class="kpi-card kpi-avance">
+          <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg></div>
+          <div class="label">% avance promedio</div>
+          <div class="value" id="kpiAvance">64<sup>%</sup></div>
+          <div class="trend">Meta trimestral: 70%</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Actividades por prioridad</h3>
+          </div>
+          <div class="bars-3d" id="barsPrioridad"></div>
+          <div class="legend-row">
+            <div class="legend-item"><span class="dot" style="background:#E4572E;"></span>Crítica</div>
+            <div class="legend-item"><span class="dot" style="background:#F2994A;"></span>Alta</div>
+            <div class="legend-item"><span class="dot" style="background:#F2B705;"></span>Media</div>
+            <div class="legend-item"><span class="dot" style="background:#2FA65A;"></span>Baja</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Actividades por estatus</h3></div>
+          <canvas id="chartEstatus" height="210"></canvas>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Tendencia de vencimiento (últimos 8 días)</h3></div>
+        <canvas id="chartTendencia" height="90"></canvas>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: ACTIVIDADES ===================== -->
+    <section class="view" id="view-actividades">
+      <h2 class="section-title">Listado de actividades</h2>
+      <div class="filters" id="filterChips">
+        <div class="chip active" data-filter="todas">Todas</div>
+        <div class="chip" data-filter="Pendiente">Pendiente</div>
+        <div class="chip" data-filter="En progreso">En progreso</div>
+        <div class="chip" data-filter="Completada">Completada</div>
+        <div class="chip" data-filter="Bloqueada">Bloqueada</div>
+        <div class="chip" data-filter="Cancelada">Cancelada</div>
+        <div class="chip" id="btnExportExcel" style="margin-left:auto; background:linear-gradient(135deg,#2FA65A,#1F7A4C); color:#fff;">⬇ Exportar a Excel</div>
+      </div>
+      <div class="panel" style="overflow-x:auto;">
+        <table id="tablaActividades">
+          <thead>
+            <tr>
+              <th>ID</th><th>Área</th><th>Actividad</th><th>Responsable</th>
+              <th>Prioridad</th><th>Estatus</th><th>Fecha límite</th><th>Avance</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyActividades"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: PRIORIDADES ===================== -->
+    <section class="view" id="view-prioridades">
+      <h2 class="section-title">Distribución por prioridad</h2>
+      <div class="kpi-mini-row">
+        <div class="kpi-mini"><div class="circle" style="background:linear-gradient(145deg,#EF6E5B,#C23B27)" id="prioCriticaN">5</div><div class="txt"><div class="n">Crítica</div><div class="l" id="prioCriticaPct">11.9% del total</div></div></div>
+        <div class="kpi-mini"><div class="circle" style="background:linear-gradient(145deg,#F5A462,#D97E2E)" id="prioAltaN">12</div><div class="txt"><div class="n">Alta</div><div class="l" id="prioAltaPct">28.6% del total</div></div></div>
+        <div class="kpi-mini"><div class="circle" style="background:linear-gradient(145deg,#F6CB4C,#C68A11)" id="prioMediaN">15</div><div class="txt"><div class="n">Media</div><div class="l" id="prioMediaPct">35.7% del total</div></div></div>
+        <div class="kpi-mini"><div class="circle" style="background:linear-gradient(145deg,#3BB273,#1F7A4C)" id="prioBajaN">10</div><div class="txt"><div class="n">Baja</div><div class="l" id="prioBajaPct">23.8% del total</div></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Comparativo de prioridad vs. estatus</h3></div>
+        <canvas id="chartPrioridadEstatus" height="110"></canvas>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: ALERTAS ===================== -->
+    <section class="view" id="view-alertas">
+      <h2 class="section-title">Actividades que requieren atención</h2>
+      <div class="filters">
+        <div class="chip" id="btnExportAlertas" style="background:linear-gradient(135deg,#2FA65A,#1F7A4C); color:#fff;">⬇ Exportar a Excel</div>
+      </div>
+      <div class="panel" style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>ID</th><th>Actividad</th><th>Responsable</th><th>Estatus</th><th>Fecha límite</th></tr></thead>
+          <tbody id="tbodyAlertas"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: HISTORIAL ===================== -->
+    <section class="view" id="view-historial">
+      <h2 class="section-title">Historial del dashboard</h2>
+      <div class="panel">
+        <div class="panel-head"><h3>Evolución mensual de indicadores</h3></div>
+        <canvas id="chartHistorial" height="110"></canvas>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: ÁREAS ===================== -->
+    <section class="view" id="view-areas">
+      <h2 class="section-title">Actividades por área</h2>
+      <div class="panel">
+        <canvas id="chartAreas" height="130"></canvas>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: CONFIGURACIÓN ===================== -->
+    <section class="view" id="view-config">
+      <h2 class="section-title">Fuente de datos — conectar a Google Sheets</h2>
+      <div class="panel" style="max-width:640px;">
+        <p style="font-size:12.5px; color:var(--text-soft); margin-top:0;">
+          Puedes conectar de dos formas: (A) pegando la URL <code>/exec</code> de tu proyecto de
+          Apps Script (recomendado, más privado — no requiere hacer pública la hoja), o
+          (B) publicando la hoja "Actividades" como CSV (Archivo &gt; Compartir &gt; Publicar en la web).
+          El campo detecta automáticamente cuál de las dos le diste.
+        </p>
+        <label style="display:block; font-size:12px; font-weight:700; color:var(--navy-800); margin-bottom:4px;">
+          URL de datos (Apps Script /exec o CSV de "Actividades") *
+        </label>
+        <input type="text" id="inputUrlDatos" placeholder="https://script.google.com/macros/s/…/exec  o  https://docs.google.com/…&output=csv"
+          style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); font-size:12.5px; margin-bottom:14px;">
+
+        <label style="display:block; font-size:12px; font-weight:700; color:var(--navy-800); margin-bottom:4px;">
+          URL del CSV de "Historial_Dashboard" (opcional — solo si usas el modo CSV; en modo Apps Script el historial ya viene incluido)
+        </label>
+        <input type="text" id="inputUrlHistorial" placeholder="https://docs.google.com/spreadsheets/d/e/…/pub?gid=…&single=true&output=csv"
+          style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); font-size:12.5px; margin-bottom:14px;">
+
+        <label style="display:block; font-size:12px; font-weight:700; color:var(--navy-800); margin-bottom:4px;">
+          Clave de acceso (opcional — solo si definiste API_TOKEN en Code.gs)
+        </label>
+        <input type="text" id="inputApiKey" placeholder="Déjalo vacío si no configuraste una clave"
+          style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); font-size:12.5px; margin-bottom:14px;">
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="btnConectar" style="background:linear-gradient(135deg,var(--blue-600),var(--navy-800)); color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+            Conectar y actualizar
+          </button>
+          <button id="btnUsarEjemplo" style="background:var(--blue-100); color:var(--blue-700); border:none; padding:10px 16px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+            Usar datos de ejemplo
+          </button>
+        </div>
+        <p id="estadoConexion" style="margin-top:14px; font-size:12.5px; font-weight:700; color:var(--gray);">
+          Mostrando datos de ejemplo. Conecta tu Sheet para ver información real.
+        </p>
+        <p style="font-size:11.5px; color:var(--text-soft); margin-bottom:0;">
+          Nota: la conexión en vivo solo funciona una vez que este archivo está hospedado fuera de Claude
+          (GitHub Pages, Netlify, tu propio servidor, etc.). Dentro de la vista previa de Claude, las
+          peticiones a otros sitios están bloqueadas por seguridad.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+/* ============ DATOS DE EJEMPLO (fallback si no hay Sheet conectado) ============ */
+let actividades = [
+  {id:"ACT-001", area:"Finanzas", actividad:"Cierre contable mensual", responsable:"María López", prioridad:"Alta", estatus:"En progreso", fechaLimite:"20 sep 2026", avance:60, estatusVencimiento:"Por vencer"},
+  {id:"ACT-002", area:"Recursos Humanos", actividad:"Actualizar políticas de vacaciones", responsable:"Jorge Pérez", prioridad:"Media", estatus:"Pendiente", fechaLimite:"28 sep 2026", avance:0, estatusVencimiento:"En tiempo"},
+  {id:"ACT-003", area:"Tecnología", actividad:"Migración de servidores", responsable:"Ana Torres", prioridad:"Crítica", estatus:"Bloqueada", fechaLimite:"16 sep 2026", avance:40, estatusVencimiento:"Vencida"},
+  {id:"ACT-004", area:"Comercial", actividad:"Reporte de ventas Q3", responsable:"Luis Ramírez", prioridad:"Baja", estatus:"Completada", fechaLimite:"8 sep 2026", avance:100, estatusVencimiento:"Completada"},
+  {id:"ACT-005", area:"Legal", actividad:"Revisión de contrato marco", responsable:"Sofía Reyes", prioridad:"Alta", estatus:"En progreso", fechaLimite:"19 sep 2026", avance:75, estatusVencimiento:"Por vencer"},
+  {id:"ACT-006", area:"Operaciones", actividad:"Auditoría de inventario", responsable:"Carlos Nava", prioridad:"Media", estatus:"Pendiente", fechaLimite:"30 sep 2026", avance:0, estatusVencimiento:"En tiempo"},
+  {id:"ACT-007", area:"Marketing", actividad:"Campaña Q4", responsable:"Diana Ruiz", prioridad:"Alta", estatus:"En progreso", fechaLimite:"21 sep 2026", avance:55, estatusVencimiento:"En tiempo"},
+  {id:"ACT-008", area:"Dirección", actividad:"Plan estratégico 2027", responsable:"Roberto Díaz", prioridad:"Crítica", estatus:"Pendiente", fechaLimite:"17 sep 2026", avance:10, estatusVencimiento:"Vencida"},
+  {id:"ACT-009", area:"Finanzas", actividad:"Conciliación bancaria agosto", responsable:"María López", prioridad:"Media", estatus:"Completada", fechaLimite:"5 sep 2026", avance:100, estatusVencimiento:"Completada"},
+  {id:"ACT-010", area:"TI", actividad:"Actualización de licencias", responsable:"Ana Torres", prioridad:"Baja", estatus:"Cancelada", fechaLimite:"14 sep 2026", avance:20, estatusVencimiento:"Cancelada"},
+];
+let historialRows = null;
+let filtroActual = "todas";
+let actividadesAlerta = [];
+
+const estatusColor = {
+  "Pendiente":{tag:"tag-blue", dot:"#2E75B6"},
+  "En progreso":{tag:"tag-amber", dot:"#F2B705"},
+  "Completada":{tag:"tag-green", dot:"#2FA65A"},
+  "Bloqueada":{tag:"tag-red", dot:"#E4572E"},
+  "Cancelada":{tag:"tag-gray", dot:"#8A94A6"},
+};
+const prioridadColor = { "Crítica":"#E4572E", "Alta":"#F2994A", "Media":"#F2B705", "Baja":"#2FA65A" };
+
+const LS_ACT = 'dash_csv_actividades_url';
+const LS_HIST = 'dash_csv_historial_url';
+const LS_KEY = 'dash_api_key';
+
+/* ============ CONEXIÓN A GOOGLE SHEETS (Apps Script /exec o CSV) ============ */
+function parsePorcentaje(raw){
+  if (raw === undefined || raw === null || raw === "") return 0;
+  let s = String(raw).trim();
+  if (s.endsWith("%")) return Math.round(parseFloat(s.replace("%","").replace(",",".")) || 0);
+  let n = parseFloat(s.replace(",","."));
+  if (isNaN(n)) return 0;
+  return n <= 1 ? Math.round(n * 100) : Math.round(n);
+}
+
+function mapRowActividad(r){
+  return {
+    id: r["ID_Actividad"] || "",
+    area: r["Área/Departamento"] || "",
+    actividad: r["Actividad"] || "",
+    responsable: r["Responsable"] || "",
+    prioridad: (r["Prioridad"] || "").trim(),
+    estatus: (r["Estatus"] || "").trim(),
+    fechaLimite: r["Fecha límite"] || "",
+    avance: parsePorcentaje(r["% de avance"]),
+    estatusVencimiento: (r["Estatus de vencimiento"] || "").trim()
+  };
+}
+
+function setEstadoConexion(msg, ok){
+  const el = document.getElementById('estadoConexion');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok === true ? '#2FA65A' : (ok === false ? '#E4572E' : '#8A94A6');
+}
+
+async function fetchCSV(url){
+  const resp = await fetch(url, { cache: "no-store" });
+  if (!resp.ok) throw new Error("HTTP " + resp.status);
+  const text = await resp.text();
+  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  return parsed.data;
+}
+
+async function cargarDatosDesdeSheet(guardarEnStorage){
+  const url = document.getElementById('inputUrlDatos').value.trim();
+  const urlHist = document.getElementById('inputUrlHistorial').value.trim();
+  const apiKey = document.getElementById('inputApiKey').value.trim();
+
+  if (!url){
+    setEstadoConexion('Agrega la URL de datos (Apps Script /exec o CSV) para conectar información real.', false);
+    return;
+  }
+
+  const esAppsScript = url.includes("/exec");
+  setEstadoConexion('Conectando...', null);
+
+  try{
+    if (esAppsScript){
+      const urlFinal = apiKey ? (url + (url.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(apiKey)) : url;
+      const resp = await fetch(urlFinal, { cache: "no-store" });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const json = await resp.json();
+      if (json.error) throw new Error(json.error);
+
+      actividades = (json.actividades || []).map(a => ({
+        id: a.id, area: a.area, actividad: a.actividad, responsable: a.responsable,
+        prioridad: a.prioridad, estatus: a.estatus, fechaLimite: a.fechaLimite,
+        avance: Number(a.avance) || 0, estatusVencimiento: a.estatusVencimiento
+      }));
+      historialRows = (json.historial && json.historial.length) ? json.historial.map(h => ({
+        "Fecha": h.fecha, "Completadas": h.completadas, "Vencidas": h.vencidas, "Por vencer": h.porVencer
+      })) : null;
+
+    } else {
+      const filas = (await fetchCSV(url)).filter(r => r["ID_Actividad"]);
+      actividades = filas.map(mapRowActividad);
+
+      historialRows = null;
+      if (urlHist){
+        try{
+          const filasHist = (await fetchCSV(urlHist)).filter(r => r["Fecha"]);
+          historialRows = filasHist;
+        }catch(e){ historialRows = null; }
+      }
+    }
+
+    if (guardarEnStorage !== false){
+      try{
+        localStorage.setItem(LS_ACT, url);
+        if (urlHist) localStorage.setItem(LS_HIST, urlHist); else localStorage.removeItem(LS_HIST);
+        if (apiKey) localStorage.setItem(LS_KEY, apiKey); else localStorage.removeItem(LS_KEY);
+      }catch(e){ /* localStorage no disponible, seguimos sin guardar */ }
+    }
+
+    renderTodo();
+    setEstadoConexion('Conectado (' + (esAppsScript ? 'Apps Script' : 'CSV') + ') — ' + actividades.length +
+      ' actividades cargadas. Última actualización: ' + new Date().toLocaleTimeString('es-MX'), true);
+  }catch(err){
+    console.error(err);
+    setEstadoConexion('No se pudo conectar: ' + err.message + '. Revisa la URL y los permisos. Se mantienen los datos de ejemplo.', false);
+  }
+}
+
+function cargarConfigInicial(){
+  let url = "", urlHist = "", apiKey = "";
+  try{
+    url = localStorage.getItem(LS_ACT) || "";
+    urlHist = localStorage.getItem(LS_HIST) || "";
+    apiKey = localStorage.getItem(LS_KEY) || "";
+  }catch(e){ /* sin acceso a localStorage */ }
+  document.getElementById('inputUrlDatos').value = url;
+  document.getElementById('inputUrlHistorial').value = urlHist;
+  document.getElementById('inputApiKey').value = apiKey;
+  if (url) cargarDatosDesdeSheet(false);
+}
+
+document.getElementById('btnConectar').addEventListener('click', () => cargarDatosDesdeSheet(true));
+document.getElementById('btnUsarEjemplo').addEventListener('click', () => {
+  document.getElementById('inputUrlDatos').value = "";
+  document.getElementById('inputUrlHistorial').value = "";
+  document.getElementById('inputApiKey').value = "";
+  try{ localStorage.removeItem(LS_ACT); localStorage.removeItem(LS_HIST); localStorage.removeItem(LS_KEY); }catch(e){}
+  historialRows = null;
+  setEstadoConexion('Mostrando datos de ejemplo.', null);
+  renderTodo();
+});
+
+/* ============ RENDER: TABLA DE ACTIVIDADES ============ */
+function pintarTabla(filtro){
+  filtroActual = filtro;
+  const tbody = document.getElementById('tbodyActividades');
+  tbody.innerHTML = "";
+  actividades
+    .filter(a => filtro === "todas" || a.estatus === filtro)
+    .forEach(a => {
+      const ec = estatusColor[a.estatus] || estatusColor["Pendiente"];
+      const colorP = prioridadColor[a.prioridad] || "#2E75B6";
+      tbody.innerHTML += `<tr>
+        <td><strong>${a.id}</strong></td>
+        <td>${a.area}</td>
+        <td>${a.actividad}</td>
+        <td>${a.responsable}</td>
+        <td><span class="tag" style="background:${colorP}22; color:${colorP};"><span class="tag-dot" style="background:${colorP}"></span>${a.prioridad}</span></td>
+        <td><span class="tag ${ec.tag}"><span class="tag-dot" style="background:${ec.dot}"></span>${a.estatus}</span></td>
+        <td>${a.fechaLimite}</td>
+        <td><div class="progress-track"><div class="progress-fill" style="width:${a.avance}%"></div></div></td>
+      </tr>`;
+    });
+}
+
+document.querySelectorAll('#filterChips .chip[data-filter]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#filterChips .chip[data-filter]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    pintarTabla(chip.dataset.filter);
+  });
+});
+
+/* ============ EXPORTAR A EXCEL (SheetJS) ============ */
+document.getElementById('btnExportExcel').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const datos = actividades
+    .filter(a => filtroActual === "todas" || a.estatus === filtroActual)
+    .map(a => ({
+      "ID": a.id, "Área": a.area, "Actividad": a.actividad, "Responsable": a.responsable,
+      "Prioridad": a.prioridad, "Estatus": a.estatus, "Fecha límite": a.fechaLimite, "% Avance": a.avance + "%"
+    }));
+  const hoja = XLSX.utils.json_to_sheet(datos);
+  hoja['!cols'] = [{wch:10},{wch:16},{wch:30},{wch:18},{wch:10},{wch:14},{wch:14},{wch:10}];
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Actividades");
+  const nombreArchivo = "Actividades_" + (filtroActual === "todas" ? "todas" : filtroActual.replace(/\s+/g,"_")) + ".xlsx";
+  XLSX.writeFile(libro, nombreArchivo);
+});
+
+document.getElementById('btnExportAlertas').addEventListener('click', ()=>{
+  const datos = actividadesAlerta.map(a=>({
+    "ID": a.id, "Actividad": a.actividad, "Responsable": a.responsable,
+    "Estatus": a.estatus, "Fecha límite": a.fechaLimite
+  }));
+  const hoja = XLSX.utils.json_to_sheet(datos);
+  hoja['!cols'] = [{wch:10},{wch:30},{wch:18},{wch:14},{wch:14}];
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, "Alertas");
+  XLSX.writeFile(libro, "Alertas_Vencimiento.xlsx");
+});
+
+/* ============ RENDER: ALERTAS ============ */
+function renderAlertas(){
+  const tbodyAlertas = document.getElementById('tbodyAlertas');
+  tbodyAlertas.innerHTML = "";
+  actividadesAlerta = actividades
+    .filter(a => a.estatusVencimiento === "Vencida" || a.estatusVencimiento === "Por vencer")
+    .slice(0, 12);
+  actividadesAlerta.forEach(a=>{
+    const esVencida = a.estatusVencimiento === "Vencida";
+    tbodyAlertas.innerHTML += `<tr>
+      <td><strong>${a.id}</strong></td><td>${a.actividad}</td><td>${a.responsable}</td>
+      <td><span class="tag ${esVencida ? 'tag-red' : 'tag-amber'}"><span class="tag-dot" style="background:${esVencida ? '#E4572E' : '#F2B705'}"></span>${a.estatusVencimiento}</span></td>
+      <td>${a.fechaLimite}</td>
+    </tr>`;
+  });
+}
+
+/* ============ RENDER: BARRAS 3D DE PRIORIDAD ============ */
+function renderBarrasPrioridad(prio){
+  const maxPrio = Math.max(1, ...Object.values(prio));
+  const barsWrap = document.getElementById('barsPrioridad');
+  barsWrap.innerHTML = "";
+  Object.entries(prio).forEach(([k,v])=>{
+    const h = Math.max(18, (v/maxPrio)*140);
+    barsWrap.innerHTML += `
+      <div class="bar-3d-wrap">
+        <div class="bar-value">${v}</div>
+        <div class="bar-3d" style="height:${h}px; background:linear-gradient(160deg, ${prioridadColor[k]}, ${prioridadColor[k]}CC);"></div>
+        <div class="bar-label">${k}</div>
+      </div>`;
+  });
+}
+
+function renderMiniPrioridad(prio, total){
+  const ids = {Crítica:"prioCritica", Alta:"prioAlta", Media:"prioMedia", Baja:"prioBaja"};
+  Object.entries(prio).forEach(([k,v])=>{
+    const nEl = document.getElementById(ids[k] + "N");
+    const pEl = document.getElementById(ids[k] + "Pct");
+    if (nEl) nEl.textContent = v;
+    if (pEl) pEl.textContent = (total ? ((v/total)*100).toFixed(1) : "0.0") + "% del total";
+  });
+}
+
+/* ============ CHARTS (con referencias para poder actualizarlos) ============ */
+let chartEstatus, chartTendencia, chartPrioridadEstatus, chartHistorial, chartAreas;
+
+function crearOActualizar(ref, canvasId, config){
+  if (ref) ref.destroy();
+  return new Chart(document.getElementById(canvasId), config);
+}
+
+function renderChartEstatus(counts){
+  chartEstatus = crearOActualizar(chartEstatus, 'chartEstatus', {
+    type:'doughnut',
+    data:{
+      labels:['Pendiente','En progreso','Completada','Bloqueada','Cancelada'],
+      datasets:[{ data:[counts["Pendiente"],counts["En progreso"],counts["Completada"],counts["Bloqueada"],counts["Cancelada"]],
+        backgroundColor:['#2E75B6','#F2B705','#2FA65A','#E4572E','#8A94A6'],
+        borderWidth:3, borderColor:'#fff', hoverOffset:8 }]
+    },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}}, cutout:'62%' }
+  });
+}
+
+function renderChartPrioridadEstatus(data){
+  const prioridades = ['Crítica','Alta','Media','Baja'];
+  const estatusGrupos = {
+    'Pendiente': 'Pendiente',
+    'En progreso': 'En progreso',
+    'Completada': 'Completada',
+    'Bloqueada': 'Bloqueada/Cancelada',
+    'Cancelada': 'Bloqueada/Cancelada'
+  };
+  const matriz = { 'Pendiente':[0,0,0,0], 'En progreso':[0,0,0,0], 'Completada':[0,0,0,0], 'Bloqueada/Cancelada':[0,0,0,0] };
+  data.forEach(a=>{
+    const grupo = estatusGrupos[a.estatus];
+    const idx = prioridades.indexOf(a.prioridad);
+    if (grupo && idx >= 0) matriz[grupo][idx]++;
+  });
+  chartPrioridadEstatus = crearOActualizar(chartPrioridadEstatus, 'chartPrioridadEstatus', {
+    type:'bar',
+    data:{
+      labels:prioridades,
+      datasets:[
+        {label:'Pendiente', data:matriz['Pendiente'], backgroundColor:'#2E75B6'},
+        {label:'En progreso', data:matriz['En progreso'], backgroundColor:'#F2B705'},
+        {label:'Completada', data:matriz['Completada'], backgroundColor:'#2FA65A'},
+        {label:'Bloqueada/Cancelada', data:matriz['Bloqueada/Cancelada'], backgroundColor:'#E4572E'}
+      ]
+    },
+    options:{ plugins:{legend:{position:'bottom'}}, responsive:true, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'#E1E8F3'}}} }
+  });
+}
+
+function renderChartAreas(areas){
+  const labels = Object.keys(areas);
+  const valores = Object.values(areas);
+  chartAreas = crearOActualizar(chartAreas, 'chartAreas', {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Actividades', data:valores, backgroundColor:'#2E75B6', borderRadius:8, maxBarThickness:38 }] },
+    options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{grid:{color:'#E1E8F3'}}, y:{grid:{display:false}}} }
+  });
+}
+
+function renderChartTendenciaDefault(){
+  chartTendencia = crearOActualizar(chartTendencia, 'chartTendencia', {
+    type:'line',
+    data:{
+      labels:['D-7','D-6','D-5','D-4','D-3','D-2','D-1','Hoy'],
+      datasets:[
+        {label:'Vencidas', data:[3,4,4,5,5,6,6,6], borderColor:'#E4572E', backgroundColor:'rgba(228,87,46,.12)', tension:.35, fill:true},
+        {label:'Por vencer', data:[6,5,6,5,4,5,5,5], borderColor:'#F2B705', backgroundColor:'rgba(242,183,5,.10)', tension:.35, fill:true},
+        {label:'Completadas', data:[9,10,12,13,15,16,17,18], borderColor:'#2FA65A', backgroundColor:'rgba(47,166,90,.10)', tension:.35, fill:true}
+      ]
+    },
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true, grid:{color:'#E1E8F3'}}, x:{grid:{display:false}}} }
+  });
+}
+
+function renderChartHistorialDefault(){
+  chartHistorial = crearOActualizar(chartHistorial, 'chartHistorial', {
+    type:'bar',
+    data:{
+      labels:['Abr','May','Jun','Jul','Ago','Sep'],
+      datasets:[
+        {label:'Completadas', data:[10,14,16,15,20,18], backgroundColor:'#2FA65A', borderRadius:6},
+        {label:'Vencidas', data:[3,2,4,3,5,6], backgroundColor:'#E4572E', borderRadius:6}
+      ]
+    },
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#E1E8F3'}}} }
+  });
+}
+
+function renderChartsDesdeHistorial(rows){
+  const ultimos8 = rows.slice(-8);
+  chartTendencia = crearOActualizar(chartTendencia, 'chartTendencia', {
+    type:'line',
+    data:{
+      labels: ultimos8.map(r => r["Fecha"]),
+      datasets:[
+        {label:'Vencidas', data:ultimos8.map(r=>Number(r["Vencidas"])||0), borderColor:'#E4572E', backgroundColor:'rgba(228,87,46,.12)', tension:.35, fill:true},
+        {label:'Por vencer', data:ultimos8.map(r=>Number(r["Por vencer"])||0), borderColor:'#F2B705', backgroundColor:'rgba(242,183,5,.10)', tension:.35, fill:true},
+        {label:'Completadas', data:ultimos8.map(r=>Number(r["Completadas"])||0), borderColor:'#2FA65A', backgroundColor:'rgba(47,166,90,.10)', tension:.35, fill:true}
+      ]
+    },
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true, grid:{color:'#E1E8F3'}}, x:{grid:{display:false}}} }
+  });
+
+  const ultimos12 = rows.slice(-12);
+  chartHistorial = crearOActualizar(chartHistorial, 'chartHistorial', {
+    type:'bar',
+    data:{
+      labels: ultimos12.map(r => r["Fecha"]),
+      datasets:[
+        {label:'Completadas', data:ultimos12.map(r=>Number(r["Completadas"])||0), backgroundColor:'#2FA65A', borderRadius:6},
+        {label:'Vencidas', data:ultimos12.map(r=>Number(r["Vencidas"])||0), backgroundColor:'#E4572E', borderRadius:6}
+      ]
+    },
+    options:{ plugins:{legend:{position:'bottom'}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#E1E8F3'}}} }
+  });
+}
+
+/* ============ RENDER GENERAL: recalcula todo desde `actividades` ============ */
+function renderTodo(){
+  const total = actividades.length;
+  const completadas = actividades.filter(a => a.estatus === "Completada").length;
+  const vencidas = actividades.filter(a => a.estatusVencimiento === "Vencida").length;
+  const porVencer = actividades.filter(a => a.estatusVencimiento === "Por vencer").length;
+  const avancePromedio = total ? Math.round(actividades.reduce((s,a) => s + (a.avance||0), 0) / total) : 0;
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpiCompletadas').textContent = completadas;
+  document.getElementById('kpiVencidas').textContent = vencidas;
+  document.getElementById('kpiPorVencer').textContent = porVencer;
+  document.getElementById('kpiAvance').innerHTML = avancePromedio + '<sup>%</sup>';
+  document.getElementById('kpiCompletadasTrend').textContent = (total ? ((completadas/total)*100).toFixed(1) : "0.0") + "% del total";
+  document.getElementById('navBadgeTotal').textContent = total;
+  document.getElementById('navBadgeAlert').textContent = vencidas + porVencer;
+
+  const prio = {Crítica:0, Alta:0, Media:0, Baja:0};
+  actividades.forEach(a => { if (prio[a.prioridad] !== undefined) prio[a.prioridad]++; });
+  renderBarrasPrioridad(prio);
+  renderMiniPrioridad(prio, total);
+
+  const estatusCounts = {Pendiente:0, "En progreso":0, Completada:0, Bloqueada:0, Cancelada:0};
+  actividades.forEach(a => { if (estatusCounts[a.estatus] !== undefined) estatusCounts[a.estatus]++; });
+  renderChartEstatus(estatusCounts);
+  renderChartPrioridadEstatus(actividades);
+
+  const areas = {};
+  actividades.forEach(a => { if (a.area) areas[a.area] = (areas[a.area]||0) + 1; });
+  renderChartAreas(areas);
+
+  pintarTabla(filtroActual);
+  renderAlertas();
+
+  if (historialRows && historialRows.length){
+    renderChartsDesdeHistorial(historialRows);
+  } else {
+    renderChartTendenciaDefault();
+    renderChartHistorialDefault();
+  }
+}
+
+/* ============ FECHA EN EL TOPBAR ============ */
+document.getElementById('fechaHoy').textContent = new Date().toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+/* ============ NAVEGACIÓN ============ */
+const titles = {
+  resumen:["Panel general de indicadores","Actualizado en tiempo real desde la base de seguimiento"],
+  actividades:["Actividades","Listado completo con filtros por estatus"],
+  prioridades:["Prioridades","Distribución de actividades por nivel de prioridad"],
+  alertas:["Alertas","Actividades vencidas o por vencer que requieren seguimiento"],
+  historial:["Historial","Evolución de los indicadores en el tiempo"],
+  areas:["Por área","Carga de actividades por área/departamento"],
+  config:["Configuración","Conecta el dashboard a tu Google Sheet"]
+};
+document.querySelectorAll('.menu-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    const v = item.dataset.view;
+    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('viewTitle').textContent = titles[v][0];
+    document.getElementById('viewSub').textContent = titles[v][1];
+    if (window.innerWidth <= 780) document.getElementById('sidebar').classList.remove('open');
+  });
+});
+document.getElementById('menuToggle').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* ============ TILT 3D EN KPI CARDS ============ */
+document.querySelectorAll('.kpi-card').forEach(card=>{
+  card.addEventListener('mousemove', e=>{
+    const r = card.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const rx = ((y / r.height) - 0.5) * -8;
+    const ry = ((x / r.width) - 0.5) * 8;
+    card.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-3px)`;
+  });
+  card.addEventListener('mouseleave', ()=>{ card.style.transform = ""; });
+});
+
+/* ============ INICIO ============ */
+renderTodo();
+cargarConfigInicial();
+</script>
+</body>
+</html>
+
