@@ -365,6 +365,37 @@
     width:36px; height:36px; cursor:pointer; font-size:16px;
   }
   @media (max-width: 780px){ .menu-toggle{display:block;} }
+
+  /* ============ MODAL NUEVA ACTIVIDAD ============ */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(11,31,58,.55);
+    display:none; align-items:center; justify-content:center; z-index:100;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{
+    background:var(--panel); border-radius:16px; width:100%; max-width:520px;
+    max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px rgba(0,0,0,.35);
+    padding:26px 28px;
+  }
+  .modal-box h3{ margin:0 0 4px 0; color:var(--navy-800); font-size:17px; }
+  .modal-box .sub{ font-size:12px; color:var(--text-soft); margin-bottom:16px; }
+  .modal-box label{ display:block; font-size:12px; font-weight:700; color:var(--navy-800); margin:12px 0 4px 0; }
+  .modal-box input, .modal-box select, .modal-box textarea{
+    width:100%; padding:9px 11px; border-radius:8px; border:1px solid var(--border);
+    font-size:13px; font-family:inherit; box-sizing:border-box;
+  }
+  .modal-fila-doble{ display:flex; gap:12px; }
+  .modal-fila-doble > div{ flex:1; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .modal-actions button{ padding:10px 18px; border-radius:8px; border:none; font-weight:700; font-size:13px; cursor:pointer; }
+  #btnModalCancelar{ background:var(--blue-050); color:var(--text-soft); }
+  #btnModalGuardar{ background:linear-gradient(135deg,var(--blue-600),var(--navy-800)); color:#fff; }
+  #btnModalGuardar:disabled{ opacity:.6; cursor:not-allowed; }
+  #modalMensaje{ margin-top:10px; font-size:12.5px; font-weight:700; display:none; }
+  #modalMensaje.ok{ color:#2FA65A; display:block; }
+  #modalMensaje.error{ color:#E4572E; display:block; }
+  #modalMensaje.aviso{ color:#8A94A6; display:block; }
 </style>
 </head>
 <body>
@@ -438,6 +469,9 @@
       </div>
     </div>
     <div class="topbar-actions">
+      <button id="btnNuevaActividad" style="background:linear-gradient(135deg,var(--blue-600),var(--navy-800)); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-weight:700; font-size:12.5px; cursor:pointer; box-shadow:0 6px 14px rgba(31,56,100,.3); display:flex; align-items:center; gap:6px;">
+        ➕ Nueva actividad
+      </button>
       <span class="pill-date" id="fechaHoy"></span>
     </div>
   </div>
@@ -623,6 +657,80 @@
       </div>
     </section>
 
+  </div>
+</div>
+
+<!-- ===================== MODAL: NUEVA ACTIVIDAD ===================== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <h3>Nueva actividad</h3>
+    <div class="sub">Se guarda directo en tu Google Sheet a través de tu proyecto de Apps Script.</div>
+
+    <label for="mArea">Área/Departamento *</label>
+    <select id="mArea" required></select>
+
+    <div class="modal-fila-doble">
+      <div>
+        <label for="mResponsable">Responsable *</label>
+        <input type="text" id="mResponsable">
+      </div>
+      <div>
+        <label for="mCorreo">Correo del responsable</label>
+        <input type="email" id="mCorreo" placeholder="nombre@empresa.com">
+      </div>
+    </div>
+
+    <label for="mActividad">Actividad *</label>
+    <input type="text" id="mActividad">
+
+    <label for="mDescripcion">Descripción</label>
+    <textarea id="mDescripcion" rows="2"></textarea>
+
+    <div class="modal-fila-doble">
+      <div>
+        <label for="mPrioridad">Prioridad *</label>
+        <select id="mPrioridad">
+          <option value="Crítica">Crítica</option>
+          <option value="Alta">Alta</option>
+          <option value="Media" selected>Media</option>
+          <option value="Baja">Baja</option>
+        </select>
+      </div>
+      <div>
+        <label for="mEstatus">Estatus *</label>
+        <select id="mEstatus">
+          <option value="Pendiente" selected>Pendiente</option>
+          <option value="En progreso">En progreso</option>
+          <option value="Completada">Completada</option>
+          <option value="Bloqueada">Bloqueada</option>
+          <option value="Cancelada">Cancelada</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-fila-doble">
+      <div>
+        <label for="mFechaInicio">Fecha de inicio</label>
+        <input type="date" id="mFechaInicio">
+      </div>
+      <div>
+        <label for="mFechaLimite">Fecha límite *</label>
+        <input type="date" id="mFechaLimite">
+      </div>
+    </div>
+
+    <label for="mAvance">% de avance (0-100)</label>
+    <input type="number" id="mAvance" min="0" max="100" step="1" value="0">
+
+    <label for="mComentarios">Comentarios/Notas</label>
+    <textarea id="mComentarios" rows="2"></textarea>
+
+    <div id="modalMensaje"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="btnModalCancelar">Cancelar</button>
+      <button type="button" id="btnModalGuardar">Guardar actividad</button>
+    </div>
   </div>
 </div>
 
@@ -1083,6 +1191,130 @@ document.querySelectorAll('.kpi-card').forEach(card=>{
     card.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-3px)`;
   });
   card.addEventListener('mouseleave', ()=>{ card.style.transform = ""; });
+});
+
+/* ============ MODAL: NUEVA ACTIVIDAD (escribe vía Apps Script POST) ============ */
+const AREAS_CATALOGO = [
+  "D4-1A DI - DIRECCION","D4-1B GG - GERENCIA GENERAL","D4-2A AC - ADM. COMERCIAL",
+  "D4-3A GC - GERENCIA COMERCIAL","D4-3B LI - LICITACIONES","D4-3C MK - MARKETING",
+  "D4-3D VP - VENTAS A PRIVADOS","D4-3E SP - SEGUIMIENTO DE PROYECTOS","D4-4A CM - SOCIO COMERCIAL",
+  "D4-4B CP - SOCIO COMPITE","D4-4C OD - UNIDAD DE ODONTOLOGIA","D4-4D1SI - UNIDAD INTEGRA ADMON",
+  "D4-4D2SI - UNIDAD INTEGRA SERVICIOS","D4-4E CN - UNIDAD DE CONSERVACION","D4-4F PE - PROYECTOS ESPECIALES",
+  "D4-4G BC - BIOMEDICA COMERCIAL","D4-5A GD - SUC. GUADALAJARA","D4-5B LE - SUC. LEON",
+  "D4-5C ME - SUC. MERIDA","D4-5D IG - SUC. IGUALA","D4-6A ED - ENLACE Y DESARROLLO COMERCIAL",
+  "D4-7A OP - OPERACIONES","D4-8A FI - FINANZAS","D4-8B CC - CUENTAS POR COBRAR",
+  "D4-8C CP - CUENTAS POR PAGAR","D4-8D TE - TESORERIA","D4-9A LE - LEGAL",
+  "D4-9B RH - RECURSOS HUMANOS","D4-9C SG - SISTEMAS DE GESTION DE CALIDAD","D4-9D TI - TI",
+  "D4-9E DP - DESARROLLO DE PROYECTOS","D4-9F AR - ASUNTOS REGULATORIOS"
+];
+
+function obtenerUrlExecActual(){
+  let url = "";
+  try{ url = localStorage.getItem(LS_ACT) || ""; }catch(e){}
+  if (!url) url = document.getElementById('inputUrlDatos').value.trim();
+  return url.includes("/exec") ? url : "";
+}
+function obtenerApiKeyActual(){
+  let key = "";
+  try{ key = localStorage.getItem(LS_KEY) || ""; }catch(e){}
+  if (!key) key = document.getElementById('inputApiKey').value.trim();
+  return key;
+}
+
+function poblarSelectAreasModal(){
+  const sel = document.getElementById('mArea');
+  sel.innerHTML = '<option value="" disabled selected>Selecciona un área</option>' +
+    AREAS_CATALOGO.map(a => `<option value="${a}">${a}</option>`).join('');
+}
+
+function limpiarFormularioModal(){
+  document.getElementById('mResponsable').value = "";
+  document.getElementById('mCorreo').value = "";
+  document.getElementById('mActividad').value = "";
+  document.getElementById('mDescripcion').value = "";
+  document.getElementById('mPrioridad').value = "Media";
+  document.getElementById('mEstatus').value = "Pendiente";
+  document.getElementById('mFechaInicio').value = "";
+  document.getElementById('mFechaLimite').value = "";
+  document.getElementById('mAvance').value = 0;
+  document.getElementById('mComentarios').value = "";
+  const msg = document.getElementById('modalMensaje');
+  msg.className = ""; msg.style.display = "none"; msg.textContent = "";
+}
+
+document.getElementById('btnNuevaActividad').addEventListener('click', () => {
+  if (!obtenerUrlExecActual()){
+    alert('Primero conecta tu proyecto de Apps Script (URL /exec) desde el menú Configuración. El formulario de captura solo funciona en modo Apps Script, no en modo CSV.');
+    document.querySelector('.menu-item[data-view="config"]').click();
+    return;
+  }
+  poblarSelectAreasModal();
+  limpiarFormularioModal();
+  document.getElementById('modalOverlay').classList.add('open');
+});
+
+document.getElementById('btnModalCancelar').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modalOverlay') document.getElementById('modalOverlay').classList.remove('open');
+});
+
+document.getElementById('btnModalGuardar').addEventListener('click', async () => {
+  const msg = document.getElementById('modalMensaje');
+  const datos = {
+    area: document.getElementById('mArea').value,
+    responsable: document.getElementById('mResponsable').value.trim(),
+    correo: document.getElementById('mCorreo').value.trim(),
+    actividad: document.getElementById('mActividad').value.trim(),
+    descripcion: document.getElementById('mDescripcion').value.trim(),
+    prioridad: document.getElementById('mPrioridad').value,
+    estatus: document.getElementById('mEstatus').value,
+    fechaInicio: document.getElementById('mFechaInicio').value,
+    fechaLimite: document.getElementById('mFechaLimite').value,
+    avance: document.getElementById('mAvance').value,
+    comentarios: document.getElementById('mComentarios').value.trim()
+  };
+
+  if (!datos.area || !datos.responsable || !datos.actividad || !datos.fechaLimite){
+    msg.className = "error";
+    msg.textContent = "Completa Área, Responsable, Actividad y Fecha límite (son obligatorios).";
+    msg.style.display = "block";
+    return;
+  }
+
+  const url = obtenerUrlExecActual();
+  const apiKey = obtenerApiKeyActual();
+  const urlFinal = apiKey ? (url + (url.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(apiKey)) : url;
+
+  const btn = document.getElementById('btnModalGuardar');
+  btn.disabled = true;
+  btn.textContent = "Guardando...";
+  msg.className = "aviso";
+  msg.textContent = "Guardando en tu Google Sheet...";
+  msg.style.display = "block";
+
+  try{
+    const resp = await fetch(urlFinal, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // evita preflight CORS
+      body: JSON.stringify(datos)
+    });
+    const json = await resp.json();
+    if (json.error) throw new Error(json.error);
+
+    msg.className = "ok";
+    msg.textContent = "Actividad " + json.id + " guardada correctamente.";
+    await cargarDatosDesdeSheet(false);
+    setTimeout(() => { document.getElementById('modalOverlay').classList.remove('open'); }, 900);
+  }catch(err){
+    console.error(err);
+    msg.className = "error";
+    msg.textContent = "No se pudo guardar: " + err.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Guardar actividad";
+  }
 });
 
 /* ============ INICIO ============ */
