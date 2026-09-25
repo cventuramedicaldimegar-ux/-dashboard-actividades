@@ -1201,6 +1201,8 @@ function renderTodo(){
     renderChartTendenciaDefault();
     renderChartHistorialDefault();
   }
+
+  requestAnimationFrame(() => { if (typeof refrescarChartsVisibles === 'function') refrescarChartsVisibles(); });
 }
 
 /* ============ FECHA EN EL TOPBAR ============ */
@@ -1216,6 +1218,14 @@ const titles = {
   areas:["Por área","Carga de actividades por área/departamento"],
   config:["Configuración","Conecta el dashboard a tu Google Sheet"]
 };
+function refrescarChartsVisibles(){
+  // Si una gráfica se creó mientras su pestaña estaba oculta, el navegador la mide
+  // en tamaño 0. Al volver a mostrarla, forzamos un resize para que se redibuje bien.
+  [chartEstatus, chartPrioridadEstatus, chartAreas, chartTendencia, chartHistorial].forEach(c => {
+    if (c) { try{ c.resize(); }catch(e){} }
+  });
+}
+
 document.querySelectorAll('.menu-item').forEach(item=>{
   item.addEventListener('click', ()=>{
     document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
@@ -1226,6 +1236,7 @@ document.querySelectorAll('.menu-item').forEach(item=>{
     document.getElementById('viewTitle').textContent = titles[v][0];
     document.getElementById('viewSub').textContent = titles[v][1];
     if (window.innerWidth <= 780) document.getElementById('sidebar').classList.remove('open');
+    requestAnimationFrame(refrescarChartsVisibles);
   });
 });
 document.getElementById('menuToggle').addEventListener('click', ()=>{
