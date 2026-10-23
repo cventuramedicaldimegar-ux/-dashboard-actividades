@@ -645,7 +645,7 @@ License: MIT
         <div style="font-size:12px;">Encargado Administrativo</div>
       </div>
     </div>
-    © 2026 · v1.0
+    © 2026 · v1.6 · 23/oct/2026
   </div>
 </aside>
 
@@ -760,14 +760,8 @@ License: MIT
     <!-- ===================== VISTA: TABLEROS POR ÁREA ===================== -->
     <section class="view" id="view-tableros">
       <div id="tablerosListaWrap">
-        <div class="tableros-bar">
-          <input type="text" id="tablerosBuscar" placeholder="Buscar área (nombre o clave)…">
-          <label><input type="checkbox" id="tablerosSoloAct"> Solo áreas con actividades</label>
-        </div>
-        <h3 class="tab-sec-title">Tableros por grupo</h3>
         <div class="grupos-grid" id="tablerosGrupos"></div>
-        <h3 class="tab-sec-title">Tableros por área</h3>
-        <div id="tablerosGrid"></div>
+        <div id="tablerosGrid" style="display:none"></div>
       </div>
       <div id="tableroDetalle" style="display:none">
         <div id="tableroCabecera"></div>
@@ -1423,7 +1417,7 @@ const titles = {
   alertas:["Alertas","Actividades vencidas o por vencer que requieren seguimiento"],
   historial:["Historial","Evolución de los indicadores en el tiempo"],
   areas:["Por área","Carga de actividades por área/departamento"],
-  tableros:["Tableros por grupo y por área","Comerciales, administrativas, operativas y Finanzas, o cada área por separado"],
+  tableros:["Tableros por área","Comerciales, administrativas, operativas, sucursales y Finanzas"],
   config:["Configuración","Conecta el dashboard a tu Google Sheet"]
 };
 function refrescarChartsVisibles(){
