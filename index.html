@@ -572,6 +572,19 @@ License: MIT
     .main{margin-right:0;}
     .topbar > div:first-child{flex-direction:row-reverse; flex:1; justify-content:space-between;}
   }
+
+  /* ============ TABLEROS POR GRUPO ============ */
+  .tab-sec-title{font-size:16.5px; color:var(--heading); margin:6px 0 12px 2px; font-weight:800;}
+  .grupos-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; margin-bottom:28px;}
+  .grupo-card{background:var(--panel); border:1px solid var(--border); border-top:6px solid var(--navy-800); border-radius:14px; padding:16px 18px 14px 18px; cursor:pointer; box-shadow:var(--shadow-card); transition:transform .15s ease, box-shadow .2s ease;}
+  .grupo-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-card-hover);}
+  .grupo-name{font-size:17.5px; font-weight:800; color:var(--heading); margin:8px 0 12px 0; line-height:1.2;}
+  .area-sec{margin-bottom:26px;}
+  .area-sec-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 12px 2px; padding-bottom:6px; border-bottom:2px solid var(--blue-100);}
+  .area-sec-title{font-size:15.5px; font-weight:800; color:var(--heading);}
+  .area-sec-count{font-size:13px; color:var(--text-soft); font-weight:600;}
+  .t-area{white-space:nowrap; font-size:13px; color:var(--text-soft); font-weight:600;}
+  .kcard-area{font-size:12.5px; color:var(--blue-700); font-weight:700;}
 </style>
 </head>
 <body>
@@ -751,7 +764,10 @@ License: MIT
           <input type="text" id="tablerosBuscar" placeholder="Buscar área (nombre o clave)…">
           <label><input type="checkbox" id="tablerosSoloAct"> Solo áreas con actividades</label>
         </div>
-        <div class="areas-grid" id="tablerosGrid"></div>
+        <h3 class="tab-sec-title">Tableros por grupo</h3>
+        <div class="grupos-grid" id="tablerosGrupos"></div>
+        <h3 class="tab-sec-title">Tableros por área</h3>
+        <div id="tablerosGrid"></div>
       </div>
       <div id="tableroDetalle" style="display:none">
         <div id="tableroCabecera"></div>
@@ -1391,7 +1407,7 @@ function renderTodo(){
   ['msgTendencia','msgHistorial'].forEach(id => { document.getElementById(id).style.display = mostrarGraf ? 'none' : 'block'; });
 
   renderTablerosLista();
-  if (tableroArea) renderTableroDetalle();
+  if (hayTablero()) renderTableroDetalle();
 
   requestAnimationFrame(() => { if (typeof refrescarChartsVisibles === 'function') refrescarChartsVisibles(); });
 }
@@ -1407,7 +1423,7 @@ const titles = {
   alertas:["Alertas","Actividades vencidas o por vencer que requieren seguimiento"],
   historial:["Historial","Evolución de los indicadores en el tiempo"],
   areas:["Por área","Carga de actividades por área/departamento"],
-  tableros:["Tableros por área","Cada área con su tablero: tabla agrupada por estatus o vista Kanban"],
+  tableros:["Tableros por grupo y por área","Comerciales, administrativas, operativas y Finanzas, o cada área por separado"],
   config:["Configuración","Conecta el dashboard a tu Google Sheet"]
 };
 function refrescarChartsVisibles(){
@@ -1598,8 +1614,9 @@ const VENC_TAG = {'Vencida':'tag-red','Por vencer':'tag-amber','En tiempo':'tag-
 const AVATAR_COLORS = ['#2E75B6','#1F4E79','#4472C4','#2E5C8A','#5B9BD5','#3A6EA5'];
 
 let tableroArea = null;
+let tableroGrupo = null;
 let tableroVista = 'tabla';
-let tableroFiltros = {texto:'', prioridad:'', responsable:''};
+let tableroFiltros = {texto:'', prioridad:'', responsable:'', area:''};
 let tablerosBusqueda = '';
 let tablerosSoloConActividad = false;
 const gruposColapsados = new Set();
@@ -1684,44 +1701,118 @@ function ordenarPorFecha(list){
   });
 }
 
-/* ---- Lista de tableros (una tarjeta por área) ---- */
+/* ---- Grupos de áreas (edítalos aquí si cambias la clasificación) ---- */
+const GRUPOS_AREAS = [
+  {id:'comerciales', nombre:'Áreas comerciales', areas:[
+    'D4-2A AC - ADM. COMERCIAL','D4-3A GC - GERENCIA COMERCIAL','D4-3B LI - LICITACIONES','D4-3C MK - MARKETING',
+    'D4-3D VP - VENTAS A PRIVADOS','D4-3E SP - SEGUIMIENTO DE PROYECTOS','D4-4A CM - SOCIO COMERCIAL',
+    'D4-4B CP - SOCIO COMPITE','D4-4G BC - BIOMEDICA COMERCIAL','D4-6A ED - ENLACE Y DESARROLLO COMERCIAL']},
+  {id:'administrativas', nombre:'Áreas administrativas', areas:[
+    'D4-1A DI - DIRECCION','D4-1B GG - GERENCIA GENERAL','D4-9A LE - LEGAL','D4-9B RH - RECURSOS HUMANOS',
+    'D4-9C SG - SISTEMAS DE GESTION DE CALIDAD','D4-9D TI - TI','D4-9F AR - ASUNTOS REGULATORIOS',
+    'D4-4D1SI - UNIDAD INTEGRA ADMON']},
+  {id:'operativas', nombre:'Áreas operativas', areas:[
+    'D4-7A OP - OPERACIONES','D4-4C OD - UNIDAD DE ODONTOLOGIA','D4-4D2SI - UNIDAD INTEGRA SERVICIOS',
+    'D4-4E CN - UNIDAD DE CONSERVACION','D4-4F PE - PROYECTOS ESPECIALES',
+    'D4-9E DP - DESARROLLO DE PROYECTOS','INFRAESTRUCTURA']},
+  {id:'sucursales', nombre:'Sucursales', areas:[
+    'D4-5A GD - SUC. GUADALAJARA','D4-5B LE - SUC. LEON','D4-5C ME - SUC. MERIDA','D4-5D IG - SUC. IGUALA']},
+  {id:'finanzas', nombre:'Finanzas', areas:[
+    'D4-8A FI - FINANZAS','D4-8B CC - CUENTAS POR COBRAR','D4-8C CP - CUENTAS POR PAGAR',
+    'D4-8D TE - TESORERIA','NOMINA']}
+];
+
+// Lista de grupos vigente: los definidos arriba + "Otras áreas" con cualquier área no clasificada
+function gruposVigentes(){
+  const todas = todasLasAreas();
+  const asignadas = new Set();
+  GRUPOS_AREAS.forEach(g => g.areas.forEach(a => asignadas.add(a)));
+  const lista = GRUPOS_AREAS.map(g => ({id:g.id, nombre:g.nombre, areas:g.areas.filter(a => todas.includes(a))}));
+  const otras = todas.filter(a => !asignadas.has(a));
+  if (otras.length) lista.push({id:'otras', nombre:'Otras áreas', areas:otras});
+  return lista;
+}
+function hayTablero(){ return !!(tableroArea || tableroGrupo); }
+function actividadesDelAlcance(){
+  if (tableroGrupo){
+    const g = gruposVigentes().find(x => x.id === tableroGrupo);
+    const set = new Set(g ? g.areas : []);
+    return actividades.filter(a => set.has(a.area));
+  }
+  return actividades.filter(a => a.area === tableroArea);
+}
+
+function barraEstatusHtml(s){
+  return s.total
+    ? ESTATUS_ORDEN.filter(e => s.porEstatus[e] > 0).map(e =>
+        '<span style="width:' + (s.porEstatus[e] / s.total * 100).toFixed(1) + '%;background:' + ESTATUS_PILL[e].bg + '" title="' + e + ': ' + s.porEstatus[e] + '"></span>').join('')
+    : '';
+}
+function badgesVencHtml(s){
+  return (s.venc ? '<span class="mini-badge rojo">' + s.venc + ' vencida' + (s.venc > 1 ? 's' : '') + '</span>' : '') +
+         (s.porV ? '<span class="mini-badge amber">' + s.porV + ' por vencer</span>' : '');
+}
+function areaCardHtml(a, lista){
+  const s = statsLista(lista);
+  const p = partesArea(a);
+  return '<div class="area-card ' + (s.total ? '' : 'vacia') + '" data-area="' + esc(a) + '">' +
+    '<div class="area-top"><span class="area-code">' + esc(p.codigo || 'ÁREA') + '</span><span class="area-total">' + s.total + '</span></div>' +
+    '<div class="area-name">' + esc(p.nombre) + '</div>' +
+    '<div class="stack-bar">' + barraEstatusHtml(s) + '</div>' +
+    '<div class="area-meta">' + (s.total ? '<span>Avance ' + s.avance + '%</span>' + badgesVencHtml(s) : '<span>Sin actividades</span>') + '</div>' +
+  '</div>';
+}
+
+/* ---- Lista de tableros: tarjetas por grupo + áreas organizadas por grupo ---- */
 function renderTablerosLista(){
   const grid = document.getElementById('tablerosGrid');
-  if (!grid) return;
+  const gcont = document.getElementById('tablerosGrupos');
+  if (!grid || !gcont) return;
   const por = {};
   actividades.forEach(a => { (por[a.area] = por[a.area] || []).push(a); });
-  const q = (tablerosBusqueda || '').toLowerCase();
-  let areas = todasLasAreas().filter(a => !q || a.toLowerCase().includes(q));
-  if (tablerosSoloConActividad) areas = areas.filter(a => (por[a] || []).length > 0);
-  areas.sort((x,y) => ((por[y] || []).length - (por[x] || []).length) || x.localeCompare(y));
+  const grupos = gruposVigentes();
 
-  if (!areas.length){
-    grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No hay áreas que coincidan con la búsqueda.</div>';
-    return;
-  }
-  grid.innerHTML = areas.map(a => {
-    const s = statsLista(por[a] || []);
-    const p = partesArea(a);
-    const barra = s.total
-      ? ESTATUS_ORDEN.filter(e => s.porEstatus[e] > 0).map(e =>
-          '<span style="width:' + (s.porEstatus[e] / s.total * 100).toFixed(1) + '%;background:' + ESTATUS_PILL[e].bg + '" title="' + e + ': ' + s.porEstatus[e] + '"></span>').join('')
-      : '';
-    const badges =
-      (s.venc ? '<span class="mini-badge rojo">' + s.venc + ' vencida' + (s.venc > 1 ? 's' : '') + '</span>' : '') +
-      (s.porV ? '<span class="mini-badge amber">' + s.porV + ' por vencer</span>' : '');
-    return '<div class="area-card ' + (s.total ? '' : 'vacia') + '" data-area="' + esc(a) + '">' +
-      '<div class="area-top"><span class="area-code">' + esc(p.codigo || 'ÁREA') + '</span><span class="area-total">' + s.total + '</span></div>' +
-      '<div class="area-name">' + esc(p.nombre) + '</div>' +
-      '<div class="stack-bar">' + barra + '</div>' +
-      '<div class="area-meta">' + (s.total ? '<span>Avance ' + s.avance + '%</span>' + badges : '<span>Sin actividades</span>') + '</div>' +
+  gcont.innerHTML = grupos.map(g => {
+    const lista = g.areas.reduce((acc, a) => acc.concat(por[a] || []), []);
+    const s = statsLista(lista);
+    return '<div class="grupo-card" data-grupo="' + esc(g.id) + '">' +
+      '<div class="area-top"><span class="area-code">' + g.areas.length + (g.areas.length === 1 ? ' área' : ' áreas') + '</span><span class="area-total">' + s.total + '</span></div>' +
+      '<div class="grupo-name">' + esc(g.nombre) + '</div>' +
+      '<div class="stack-bar">' + barraEstatusHtml(s) + '</div>' +
+      '<div class="area-meta">' + (s.total ? '<span>Avance ' + s.avance + '%</span>' + badgesVencHtml(s) : '<span>Sin actividades</span>') + '</div>' +
     '</div>';
   }).join('');
+
+  const q = (tablerosBusqueda || '').toLowerCase();
+  let salida = '';
+  grupos.forEach(g => {
+    let areas = g.areas.filter(a => !q || a.toLowerCase().includes(q));
+    if (tablerosSoloConActividad) areas = areas.filter(a => (por[a] || []).length > 0);
+    if (!areas.length) return;
+    areas.sort((x,y) => ((por[y] || []).length - (por[x] || []).length) || x.localeCompare(y));
+    const total = areas.reduce((n, a) => n + (por[a] || []).length, 0);
+    salida += '<div class="area-sec">' +
+      '<div class="area-sec-head"><span class="area-sec-title">' + esc(g.nombre) + '</span>' +
+      '<span class="area-sec-count">' + areas.length + (areas.length === 1 ? ' área' : ' áreas') + ' · ' + total + (total === 1 ? ' actividad' : ' actividades') + '</span></div>' +
+      '<div class="areas-grid">' + areas.map(a => areaCardHtml(a, por[a] || [])).join('') + '</div></div>';
+  });
+  grid.innerHTML = salida || '<div class="empty-msg">No hay áreas que coincidan con la búsqueda.</div>';
 }
 
 /* ---- Tablero de un área ---- */
 function abrirTablero(area){
   tableroArea = area;
-  tableroFiltros = {texto:'', prioridad:'', responsable:''};
+  tableroGrupo = null;
+  tableroFiltros = {texto:'', prioridad:'', responsable:'', area:''};
+  document.getElementById('tablerosListaWrap').style.display = 'none';
+  document.getElementById('tableroDetalle').style.display = 'block';
+  renderTableroDetalle();
+  window.scrollTo({top:0});
+}
+function abrirTableroGrupo(id){
+  tableroGrupo = id;
+  tableroArea = null;
+  tableroFiltros = {texto:'', prioridad:'', responsable:'', area:''};
   document.getElementById('tablerosListaWrap').style.display = 'none';
   document.getElementById('tableroDetalle').style.display = 'block';
   renderTableroDetalle();
@@ -1729,16 +1820,24 @@ function abrirTablero(area){
 }
 function cerrarTablero(){
   tableroArea = null;
+  tableroGrupo = null;
   document.getElementById('tableroDetalle').style.display = 'none';
   document.getElementById('tablerosListaWrap').style.display = 'block';
   renderTablerosLista();
 }
 
 function renderTableroDetalle(){
-  if (!tableroArea) return;
-  const todas = actividades.filter(a => a.area === tableroArea);
+  if (!hayTablero()) return;
+  const todas = actividadesDelAlcance();
   const s = statsLista(todas);
-  const p = partesArea(tableroArea);
+  const esGrupo = !!tableroGrupo;
+  const grupoSel = esGrupo ? gruposVigentes().find(x => x.id === tableroGrupo) : null;
+  const p = esGrupo
+    ? {codigo: 'GRUPO · ' + (grupoSel ? grupoSel.areas.length : 0) + ' áreas', nombre: grupoSel ? grupoSel.nombre : ''}
+    : partesArea(tableroArea);
+  const areasConActividad = Array.from(new Set(todas.map(a => a.area).filter(Boolean))).sort((x,y) => partesArea(x).nombre.localeCompare(partesArea(y).nombre));
+  const optArea = ['<option value="">Todas las áreas del grupo</option>'].concat(areasConActividad.map(r =>
+    '<option value="' + esc(r) + '"' + (tableroFiltros.area === r ? ' selected' : '') + '>' + esc(partesArea(r).nombre) + '</option>')).join('');
   const responsables = Array.from(new Set(todas.map(a => a.responsable).filter(Boolean))).sort((x,y) => x.localeCompare(y));
   const f = tableroFiltros;
 
@@ -1750,7 +1849,7 @@ function renderTableroDetalle(){
   document.getElementById('tableroCabecera').innerHTML =
     '<div class="board-head">' +
       '<div class="board-title">' +
-        '<button class="btn-ghost" id="btnTableroVolver">← Todas las áreas</button>' +
+        '<button class="btn-ghost" id="btnTableroVolver">← Todos los tableros</button>' +
         '<span class="area-code">' + esc(p.codigo || 'ÁREA') + '</span>' +
         '<h2>' + esc(p.nombre) + '</h2>' +
       '</div>' +
@@ -1770,6 +1869,7 @@ function renderTableroDetalle(){
     '</div>' +
     '<div class="board-filters">' +
       '<input type="text" id="tfTexto" placeholder="Buscar actividad, folio o responsable…" value="' + esc(f.texto) + '">' +
+      (esGrupo ? '<select id="tfArea">' + optArea + '</select>' : '') +
       '<select id="tfPrioridad">' + optPrio + '</select>' +
       '<select id="tfResponsable">' + optResp + '</select>' +
       '<button class="btn-ghost" id="btnTableroLimpiar">Limpiar filtros</button>' +
@@ -1781,8 +1881,8 @@ function renderTableroDetalle(){
 function actividadesDelTablero(){
   const f = tableroFiltros;
   const q = (f.texto || '').toLowerCase();
-  return actividades
-    .filter(a => a.area === tableroArea)
+  return actividadesDelAlcance()
+    .filter(a => !f.area || a.area === f.area)
     .filter(a => !f.prioridad || a.prioridad === f.prioridad)
     .filter(a => !f.responsable || a.responsable === f.responsable)
     .filter(a => !q || (a.actividad || '').toLowerCase().includes(q) ||
@@ -1793,6 +1893,7 @@ function actividadesDelTablero(){
 function filaTablaHtml(a){
   return '<tr>' +
     '<td class="t-act"><span class="t-id">' + esc(a.id) + '</span>' + esc(a.actividad) + '</td>' +
+    (tableroGrupo ? '<td class="t-area">' + esc(partesArea(a.area).nombre) + '</td>' : '') +
     '<td><div class="resp">' + avatarHtml(a.responsable) + '<span>' + esc(a.responsable || '—') + '</span></div></td>' +
     '<td>' + pillHtml(a.estatus, ESTATUS_PILL) + '</td>' +
     '<td>' + pillHtml(a.prioridad, PRIORIDAD_PILL) + '</td>' +
@@ -1810,7 +1911,7 @@ function htmlTabla(list){
     '<div class="grp ' + (gruposColapsados.has(g.nombre) ? 'colapsado' : '') + '" style="--gc:' + g.color + '">' +
       '<div class="grp-head" data-grp="' + esc(g.nombre) + '"><span class="grp-arrow">▼</span><span class="grp-title">' + esc(g.nombre) + '</span><span class="grp-count">' + g.items.length + (g.items.length === 1 ? ' actividad' : ' actividades') + '</span></div>' +
       '<div class="grp-body"><table class="board-table"><thead><tr>' +
-        '<th>Actividad</th><th>Responsable</th><th>Estatus</th><th>Prioridad</th><th>Fecha límite</th><th>Vencimiento</th><th>Avance</th>' +
+        '<th>Actividad</th>' + (tableroGrupo ? '<th>Área</th>' : '') + '<th>Responsable</th><th>Estatus</th><th>Prioridad</th><th>Fecha límite</th><th>Vencimiento</th><th>Avance</th>' +
       '</tr></thead><tbody>' + ordenarPorFecha(g.items).map(filaTablaHtml).join('') + '</tbody></table></div>' +
     '</div>').join('');
 }
@@ -1820,6 +1921,7 @@ function kcardHtml(a){
   return '<div class="kcard" style="border-left-color:' + pc + '">' +
     '<div class="kcard-id">' + esc(a.id) + '</div>' +
     '<div class="kcard-title">' + esc(a.actividad) + '</div>' +
+    (tableroGrupo ? '<div class="kcard-row"><span class="kcard-area">' + esc(partesArea(a.area).nombre) + '</span></div>' : '') +
     '<div class="kcard-row">' + avatarHtml(a.responsable) + '<span class="kcard-resp">' + esc(a.responsable || '—') + '</span></div>' +
     '<div class="kcard-row">' + pillHtml(a.prioridad, PRIORIDAD_PILL) +
       (a.estatusVencimiento ? '<span class="tag ' + (VENC_TAG[a.estatusVencimiento] || 'tag-gray') + '">' + esc(a.estatusVencimiento) + '</span>' : '') + '</div>' +
@@ -1839,10 +1941,10 @@ function htmlKanban(list){
 
 function renderTableroContenido(){
   const cont = document.getElementById('tableroContenido');
-  if (!cont || !tableroArea) return;
-  const todas = actividades.filter(a => a.area === tableroArea);
+  if (!cont || !hayTablero()) return;
+  const todas = actividadesDelAlcance();
   if (!todas.length){
-    cont.innerHTML = '<div class="empty-msg">Esta área todavía no tiene actividades.<br><br><button class="btn-primary js-nueva-act">➕ Capturar la primera actividad</button></div>';
+    cont.innerHTML = '<div class="empty-msg">' + (tableroGrupo ? 'Este grupo todavía no tiene actividades.' : 'Esta área todavía no tiene actividades.') + '<br><br><button class="btn-primary js-nueva-act">➕ Capturar la primera actividad</button></div>';
     return;
   }
   const list = actividadesDelTablero();
@@ -1854,21 +1956,23 @@ function renderTableroContenido(){
 }
 
 function exportarTablero(){
-  if (!tableroArea) return;
+  if (!hayTablero()) return;
   const datos = ordenarPorFecha(actividadesDelTablero()).map(a => ({
-    "ID": a.id, "Actividad": a.actividad, "Responsable": a.responsable, "Prioridad": a.prioridad,
+    "ID": a.id, "Área": a.area, "Actividad": a.actividad, "Responsable": a.responsable, "Prioridad": a.prioridad,
     "Estatus": a.estatus, "Fecha límite": a.fechaLimite, "Vencimiento": a.estatusVencimiento, "% Avance": (a.avance || 0) + "%"
   }));
   const hoja = XLSX.utils.json_to_sheet(datos);
-  hoja['!cols'] = [{wch:10},{wch:34},{wch:18},{wch:10},{wch:14},{wch:14},{wch:14},{wch:10}];
+  hoja['!cols'] = [{wch:10},{wch:34},{wch:34},{wch:18},{wch:10},{wch:14},{wch:14},{wch:14},{wch:10}];
   const libro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(libro, hoja, "Tablero");
-  const p = partesArea(tableroArea);
-  XLSX.writeFile(libro, "Tablero_" + (p.codigo || p.nombre).replace(/[^A-Za-z0-9]+/g, "_") + ".xlsx");
+  const nombreBase = tableroGrupo ? tableroGrupo : (partesArea(tableroArea).codigo || partesArea(tableroArea).nombre);
+  XLSX.writeFile(libro, "Tablero_" + nombreBase.replace(/[^A-Za-z0-9]+/g, "_") + ".xlsx");
 }
 
 const viewTableros = document.getElementById('view-tableros');
 viewTableros.addEventListener('click', e => {
+  const gcard = e.target.closest('.grupo-card');
+  if (gcard){ abrirTableroGrupo(gcard.dataset.grupo); return; }
   const card = e.target.closest('.area-card');
   if (card){ abrirTablero(card.dataset.area); return; }
   if (e.target.closest('#btnTableroVolver')){ cerrarTablero(); return; }
@@ -1884,7 +1988,7 @@ viewTableros.addEventListener('click', e => {
   if (e.target.closest('.js-nueva-act')){ abrirModalNuevaActividad(tableroArea); return; }
   if (e.target.closest('#btnTableroExportar')){ exportarTablero(); return; }
   if (e.target.closest('#btnTableroLimpiar')){
-    tableroFiltros = {texto:'', prioridad:'', responsable:''};
+    tableroFiltros = {texto:'', prioridad:'', responsable:'', area:''};
     renderTableroDetalle();
     return;
   }
@@ -1895,6 +1999,7 @@ viewTableros.addEventListener('input', e => {
 });
 viewTableros.addEventListener('change', e => {
   if (e.target.id === 'tablerosSoloAct'){ tablerosSoloConActividad = e.target.checked; renderTablerosLista(); }
+  else if (e.target.id === 'tfArea'){ tableroFiltros.area = e.target.value; renderTableroContenido(); }
   else if (e.target.id === 'tfPrioridad'){ tableroFiltros.prioridad = e.target.value; renderTableroContenido(); }
   else if (e.target.id === 'tfResponsable'){ tableroFiltros.responsable = e.target.value; renderTableroContenido(); }
 });
